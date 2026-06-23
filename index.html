@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>독서 일지 — 감정을 할인가에 판매합니다</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600;700&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1714;
+    --ink-soft: #3d3830;
+    --ink-muted: #7a7268;
+    --paper: #f7f4ef;
+    --paper-warm: #efe9e0;
+    --paper-dark: #e4ddd2;
+    --accent: #8b4513;
+    --accent-light: #c4763a;
+    --accent-pale: #f0e6d8;
+    --gold: #b8965a;
+    --gold-light: #d4b483;
+    --white: #fdfaf6;
+    --section-done: #4a7c59;
+    --section-done-pale: #e8f2eb;
+    --shadow: 0 4px 24px rgba(26,23,20,0.10);
+    --shadow-lg: 0 8px 48px rgba(26,23,20,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── 로그인 화면 ── */
+  #loginScreen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(160deg, #1a1714 0%, #2d2620 50%, #3d3020 100%);
+    padding: 24px;
+  }
+
+  .login-card {
+    background: var(--white);
+    border-radius: 4px;
+    padding: 56px 48px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .login-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+  }
+
+  .login-eyebrow {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 12px;
+  }
+
+  .login-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.5;
+    margin-bottom: 6px;
+  }
+
+  .login-subtitle {
+    font-size: 13px;
+    color: var(--ink-muted);
+    margin-bottom: 40px;
+    font-weight: 300;
+  }
+
+  .login-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: var(--ink-muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .login-input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 1.5px solid var(--paper-dark);
+    border-radius: 2px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 15px;
+    color: var(--ink);
+    background: var(--paper);
+    margin-bottom: 20px;
+    transition: border-color 0.2s;
+    outline: none;
+    -webkit-appearance: none;
+  }
+
+  .login-input:focus {
+    border-color: var(--accent);
+    background: var(--white);
+  }
+
+  .login-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--ink);
+    color: var(--white);
+    border: none;
+    border-radius: 2px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 4px;
+  }
+
+  .login-btn:hover { background: var(--accent); }
+  .login-btn:active { opacity: 0.85; }
+
+  .login-error {
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: #fdf0ee;
+    border-left: 3px solid #c0392b;
+    border-radius: 2px;
+    font-size: 13px;
+    color: #c0392b;
+    display: none;
+  }
+
+  /* ── 메인 앱 ── */
+  #appScreen { display: none; }
+
+  /* 상단 헤더 */
+  .app-header {
+    background: var(--ink);
+    color: var(--white);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  }
+
+  .header-book {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gold-light);
+    letter-spacing: 0.03em;
+  }
+
+  .header-student {
+    font-size: 12px;
+    color: rgba(255,255,255,0.55);
+    font-weight: 300;
+  }
+
+  .header-progress {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .progress-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    transition: background 0.3s;
+  }
+
+  .progress-dot.done { background: var(--gold); }
+  .progress-dot.current { background: var(--accent-light); }
+
+  /* 섹션 네비게이션 */
+  .section-nav {
+    background: var(--white);
+    border-bottom: 1px solid var(--paper-dark);
+    padding: 0 24px;
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .section-nav::-webkit-scrollbar { display: none; }
+
+  .section-tab {
+    padding: 14px 18px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    cursor: pointer;
+    border-bottom: 2.5px solid transparent;
+    white-space: nowrap;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .section-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .section-tab.done {
+    color: var(--section-done);
+  }
+
+  .section-tab.done::after {
+    content: '✓';
+    margin-left: 5px;
+    font-size: 10px;
+  }
+
+  .section-tab.locked {
+    color: var(--paper-dark);
+    cursor: not-allowed;
+  }
+
+  /* 메인 콘텐츠 */
+  .main-content {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+
+  /* 섹션 패널 */
+  .section-panel { display: none; }
+  .section-panel.active { display: block; }
+
+  /* 섹션 헤더 */
+  .section-header {
+    margin-bottom: 32px;
+  }
+
+  .section-eyebrow {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 10px;
+  }
+
+  .section-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.4;
+    margin-bottom: 8px;
+  }
+
+  .section-desc {
+    font-size: 13px;
+    color: var(--ink-muted);
+    font-weight: 300;
+    line-height: 1.7;
+  }
+
+  /* 소설 텍스트 뷰어 */
+  .text-viewer {
+    background: var(--white);
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-bottom: 40px;
+  }
+
+  .text-viewer-header {
+    background: var(--ink);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .text-viewer-label {
+    font-size: 11px;
+    color: var(--gold-light);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  .text-viewer-range {
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+  }
+
+  .text-body {
+    padding: 40px 48px;
+    font-family: 'Noto Serif KR', serif;
+    font-size: 16px;
+    line-height: 2.1;
+    color: var(--ink-soft);
+    font-weight: 300;
+  }
+
+  .text-body p { margin-bottom: 1.4em; }
+  .text-body p:last-child { margin-bottom: 0; }
+
+  /* 하이라이트 문단 */
+  .text-highlight-section {
+    background: var(--accent-pale);
+    border-left: 3px solid var(--accent);
+    margin: 0 -48px;
+    padding: 24px 48px;
+  }
+
+  /* 활동 카드 */
+  .activity-section {
+    margin-bottom: 32px;
+  }
+
+  .activity-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .activity-divider-line {
+    flex: 1;
+    height: 1px;
+    background: var(--paper-dark);
+  }
+
+  .activity-divider-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+
+  .activity-card {
+    background: var(--white);
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+    padding: 32px;
+    margin-bottom: 20px;
+  }
+
+  .activity-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .badge-letter {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--white);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Noto Serif KR', serif;
+  }
+
+  .badge-type {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+
+  .activity-question {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.7;
+    margin-bottom: 6px;
+  }
+
+  .activity-question-sub {
+    font-size: 13px;
+    color: var(--ink-muted);
+    margin-bottom: 18px;
+    font-weight: 300;
+    line-height: 1.6;
+  }
+
+  .activity-textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 16px;
+    border: 1.5px solid var(--paper-dark);
+    border-radius: 2px;
+    font-family: 'Noto Serif KR', serif;
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--ink);
+    background: var(--paper);
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+
+  .activity-textarea:focus {
+    border-color: var(--accent);
+    background: var(--white);
+  }
+
+  .activity-textarea.reason {
+    min-height: 90px;
+  }
+
+  /* B 질문 카드 (내용 확인) */
+  .comprehension-card {
+    background: var(--white);
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+    padding: 32px;
+    margin-bottom: 20px;
+  }
+
+  .q-item {
+    margin-bottom: 28px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--paper-warm);
+  }
+
+  .q-item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  .q-number {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .q-text {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.7;
+    margin-bottom: 14px;
+  }
+
+  /* 완료 버튼 */
+  .submit-area {
+    margin-top: 36px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .submit-btn {
+    width: 100%;
+    max-width: 400px;
+    padding: 18px 32px;
+    background: var(--ink);
+    color: var(--white);
+    border: none;
+    border-radius: 2px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .submit-btn:hover { background: var(--accent); }
+  .submit-btn:disabled {
+    background: var(--paper-dark);
+    color: var(--ink-muted);
+    cursor: not-allowed;
+  }
+
+  .submit-hint {
+    font-size: 12px;
+    color: var(--ink-muted);
+    text-align: center;
+  }
+
+  /* 완료 상태 */
+  .done-banner {
+    background: var(--section-done-pale);
+    border: 1.5px solid var(--section-done);
+    border-radius: 4px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 32px;
+  }
+
+  .done-icon {
+    width: 36px; height: 36px;
+    background: var(--section-done);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: white;
+    font-size: 16px;
+  }
+
+  .done-text strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--section-done);
+    margin-bottom: 2px;
+  }
+
+  .done-text span {
+    font-size: 12px;
+    color: var(--ink-muted);
+  }
+
+  /* 잠금 상태 */
+  .locked-banner {
+    background: var(--paper-warm);
+    border-radius: 4px;
+    padding: 48px 32px;
+    text-align: center;
+    margin-top: 24px;
+  }
+
+  .locked-icon {
+    font-size: 32px;
+    margin-bottom: 16px;
+  }
+
+  .locked-text {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 16px;
+    color: var(--ink-muted);
+    font-weight: 300;
+  }
+
+  /* 토스트 */
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--ink);
+    color: var(--white);
+    padding: 14px 24px;
+    border-radius: 2px;
+    font-size: 13px;
+    font-weight: 400;
+    box-shadow: var(--shadow-lg);
+    transition: transform 0.3s ease;
+    z-index: 999;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { border-left: 3px solid var(--section-done); }
+  .toast.error { border-left: 3px solid #c0392b; }
+
+  /* 로딩 */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(26,23,20,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 500;
+    display: none;
+  }
+
+  .loading-spinner {
+    width: 40px; height: 40px;
+    border: 3px solid rgba(255,255,255,0.2);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 반응형 */
+  @media (max-width: 600px) {
+    .login-card { padding: 40px 28px; }
+    .text-body { padding: 28px 24px; font-size: 15px; }
+    .text-highlight-section { margin: 0 -24px; padding: 20px 24px; }
+    .activity-card, .comprehension-card { padding: 24px 20px; }
+    .section-title { font-size: 20px; }
+    .main-content { padding: 24px 16px 80px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 로그인 화면 -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-eyebrow">고흥대서중학교 · 국어</div>
+    <div class="login-title">한 학기 한 권 읽기<br>독서 일지</div>
+    <div class="login-subtitle">감정을 할인가에 판매합니다 — 이세형</div>
+    <label class="login-label" for="inputId">학번</label>
+    <input class="login-input" id="inputId" type="number" placeholder="예) 30101" inputmode="numeric">
+    <label class="login-label" for="inputName">이름</label>
+    <input class="login-input" id="inputName" type="text" placeholder="이름을 입력하세요">
+    <button class="login-btn" onclick="doLogin()">독서 일지 시작하기</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- 메인 앱 -->
+<div id="appScreen">
+  <header class="app-header">
+    <div>
+      <div class="header-book">감정을 할인가에 판매합니다</div>
+      <div class="header-student" id="headerStudent"></div>
+    </div>
+    <div class="header-progress" id="headerProgress"></div>
+  </header>
+
+  <nav class="section-nav" id="sectionNav"></nav>
+
+  <main class="main-content" id="mainContent"></main>
+</div>
+
+<!-- 토스트 -->
+<div class="toast" id="toast"></div>
+
+<!-- 로딩 -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+</div>
+
+<script>
+// ── Firebase 설정 ──
+const firebaseConfig = {
+  apiKey: "AIzaSyBrH9cKPlqCXHCN45LMU7UIOAE2GwcSExk",
+  authDomain: "book-fa0fe.firebaseapp.com",
+  projectId: "book-fa0fe",
+  storageBucket: "book-fa0fe.firebasestorage.app",
+  messagingSenderId: "443137722150",
+  appId: "1:443137722150:web:d2267751a5886fd2c0e3e7"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ── Google Apps Script URL ──
+const GAS_URL = "https://script.google.com/macros/s/AKfycbz9CfykR-pX2zYhn4N2RoWT1Pah7kIZDivzq5oQ0kWphI-4tpxMRWP5rgn7nB176AlV/exec";
+
+// ── 소설 데이터 ──
+const SECTIONS = [
+  {
+    id: 1,
+    title: "낯선 역할들 사이에서",
+    desc: "여자의 대리 알바 생활과 카페에서의 첫 만남",
+    range: "처음 ~ \"전화번호를 교환했다\"",
+    text: [
+      "대학 졸업 후 여자가 처음 한 아르바이트는 결혼식 하객이었다. 신부 측의 하객인 양 축의금을 내고 신부 쪽 하객들과 함께 모여 단체 사진을 찍은 뒤, 뷔페식으로 차려진 점심을 먹기만 하면 되는 일이었다.",
+      "식이 끝나고 밥을 먹는 동안 신랑 쪽인지 신부 쪽인지 모를 하객들과 한 테이블에 동석했지만 그들이나 여자나 서로에게 관심이 없긴 마찬가지라 대화가 오가지는 않았다. 다만 하객들이 나누는 대화가 여자의 귀에 들렸는데, 신랑에 대한 품평과 신부에 대한 뒷소문, 자기네 회사와 업계 이야기 및 직장 상사 험담, 주식시장 추이와 부동산 시세 현황 그리고 최근 이슈가 된 정부의 경제정책 등 재테크 이야기가 오갔다.",
+      "비록 그중 어느 주제도 심도 있게 이어지지 못하고 금방금방 다른 이야기로 바뀌었지만 여자의 마음을 어지럽히기에는 충분했다. 원룸에서 월세로 사는 여자에게 집값을 이야기하는 그들의 대화는 다른 세계의 이야기 같았다. 서른을 눈앞에 둔 여자는 더 이상 학생도 아니고 사회인도 아닌 자신의 위치를 새삼 느꼈다.",
+      "여자는 드라마 작가가 되고 싶었다. 몇 차례 시나리오 응모에 도전했으나 모조리 탈락했다. 탈락 횟수가 두 자릿수를 넘어 어느덧 몇 번째 탈락인지 헷갈리기 시작할 즈음, 대학 시절의 지인은 모두 번듯한 직장을 구했거나 공부를 핑계로 대학원 또는 유학을 선택했거나 이도 저도 되지 못하여 스스로 잠적해버렸다.",
+      "지인들의 결혼식에 차츰 발길을 끊을 무렵, 여자는 하객 알바를 시작했다. 초대받은 결혼식은 가지 않지만 의뢰받은 결혼식에는 꼬박꼬박 나갔다.",
+      "사람들이 의뢰하는 황당한 일들을 대신하면서, 여자는 돈 때문에 이렇게까지 해야 하나 싶었지만 이 황당한 일들과 황당한 사람들을 소재로 삼아 새로운 시나리오를 쓸 수 있을 거라는 희망을 가졌다.",
+      "대낮의 한적한 카페에서 여자는 약속된 시간에 맞춰 의뢰인의 내연남이 오기를 기다렸다. 검은색 벨벳 재질의 롱코트를 입은 젊은 남자가 카페에 들어서며 고개를 두리번거리다가 여자와 눈이 마주쳤을 때, 여자는 직감적으로 저 남자가 오늘 만나기로 예정된 사람임을 알아차렸다.",
+      "내연 관계인 당사자들이 서로 상대에게 이별을 통보하고자 가짜로 가족 행세할 대리 알바를 구했으니, 그게 바로 카페에 마주 앉은 여자와 남자였다. 두 사람은 서로를 의뢰인의 정부라고 지레짐작해서는 심각한 척 무게 잡으며 연기한 것이다. 그 사실에 민망한 듯 허탈한 듯 딱 꼬집어 말하기 힘든 헛웃음을 터뜨리며 둘은 시선을 이리저리 굴렸다.",
+      "\"저 같은 사람을 만날 줄은 몰랐네요.\" 감미로운 목소리였다. 여자가 미소를 지었다. 두 사람은 연기를 집어치우고 진짜 자신에 대해 이야기했다. 헤어지면서 전화번호를 교환했다."
+    ],
+    highlight: [7, 8],
+    questions: {
+      b: [
+        "여자가 지인들의 결혼식엔 발길을 끊으면서도 의뢰받은 결혼식엔 꼬박꼬박 나간 이유는 무엇일까요? 단순히 돈 때문만은 아닐 것 같은데, 여자의 심리를 추측해보세요.",
+        "카페에서 여자와 남자가 서로를 '의뢰인의 정부'로 착각하고 진지하게 연기했습니다. 이 장면이 웃기면서도 씁쓸하게 느껴지는 이유는 무엇일까요?"
+      ],
+      c: "여자는 드라마 작가를 꿈꾸면서도 생계를 위해 타인의 감정을 대신 전달하는 일을 합니다. '꿈을 향해 나아가는 것'과 '현실을 버텨내는 것' 사이에서 여러분은 어떤 선택을 할 것 같나요? 여자의 상황에 자신을 대입해 생각해보세요."
+    }
+  },
+  {
+    id: 2,
+    title: "감정을 파는 시대의 탄생",
+    desc: "토탈 이모션과 AI 감정 서비스의 등장",
+    range: "\"연락과 만남이 이어졌으며\" ~ 직원 제안",
+    text: [
+      "연락과 만남이 이어졌으며 사귀고 동거하기까지 그리 오래 걸리지 않았다. 어느 날, 여자와 남자 모두 같은 곳에서 의뢰를 받았다. '토탈 이모션'이라는 스타트업이었는데, 의뢰 내용은 밝히지 않은 채 자기네 사무실로 찾아와달라는 게 요구의 전부였다.",
+      "'토탈 이모션' 사무실은 도심 건물 한 곳에 세를 얻은 작은 사무실이었다. 사장은 모 유명 기업 IT 부서에 근무하다가 얼마 전 독립하여 이 회사를 차렸다고 자신을 소개했다.",
+      "\"'토탈 이모션'은 현대인의 미래를 책임지는 게 목표입니다.\" 사장이 대뜸 그렇게 말했다.",
+      "사장은 애초에 그들의 반응을 염두에도 두지 않았는지 계속해서 말을 이었다. 현대인의 노동은 점점 정신노동으로 이행되고 있다고, 육체노동의 상당수는 기계에게 내어준 지 오래라고, 그 결과 현대인에게 중요하게 떠오른 화두가 '정신질환'이라고 사장은 진지하게 말했다.",
+      "\"사람들이 갈수록 사람을 불신하고 기피하는 이유가 뭘까요? 택배만 해도 그냥 두고 가라고 하는 경우가 얼마나 많아졌느냔 말이죠. 그런데 자기가 키우는 반려동물한테는 애정을 쏟아요. 정신노동은 대체로 인간관계에 따른 스트레스를 수반합니다. 감정적 에너지가 거의 고갈되는 거죠. 그래서 피하는 거예요.\"",
+      "사장은 그러더니 문자메시지 자동생성 AI를 서비스할 계획이라고 했다. '토탈 텍스트'는 발신자가 메시지 내용을 입력하지 않더라도 앱에 탑재된 AI가 유심카드의 정보, 온라인 접속 기록, 핸드폰을 터치할 때 확인된 체온과 심박수 등을 분석하여 마치 사람이 쓴 것처럼 호소력 있는 텍스트를 생성, 발송하는 앱이었다.",
+      "\"여러분이 데이터 그 자체입니다. 두 분은 다양한 상황에서 다양한 역할을 한 경험이 있을 겁니다. 그래서 부른 겁니다. 그 경험을 '토탈 텍스트'에 입력하는 겁니다. 저는 지금 두 분께 우리 회사의 직원이 되어달라고 말하는 겁니다.\" 그리고 사장은 입가를 올리며 이렇게 덧붙였다. \"정규직입니다. 야근은 없습니다!\""
+    ],
+    highlight: [4, 5],
+    questions: {
+      b: [
+        "사장은 현대인이 사람 대신 반려동물과 길고양이에게 애정을 쏟는 현상을 어떻게 설명하나요? 그 설명에 동의하나요, 동의하지 않나요?",
+        "사장이 여자와 남자를 고용하려 한 이유는 무엇인가요? 두 사람이 가진 어떤 경험이 'AI 감정 서비스' 개발에 필요했나요?"
+      ],
+      c: "사장은 사람들이 감정 소모를 피하기 위해 AI에게 인간관계를 위탁하는 시대가 올 것이라 예측합니다. 지금 우리 주변에서 이미 그런 현상이 일어나고 있다고 느낀 적이 있나요? 구체적인 사례를 들어 이야기해보세요."
+    }
+  },
+  {
+    id: 3,
+    title: "풍요 속의 공허",
+    desc: "AI에 잠식된 삶, 균열하는 사랑",
+    range: "\"토탈 텍스트는 성공했다\" ~ 이혼",
+    text: [
+      "'토탈 텍스트'는 성공했다. 올해의 베스트 애플리케이션으로 선정된 게 당연할 정도였다. 두 번의 연이은 성공에 힘입어 '토탈 이모션'은 각종 상품을 출시했다. 실행과 동시에 사용자의 취향을 분석해 이야기를 생성하는 소설 앱 '토탈 픽션', '토탈 사운드', '토탈 드로잉' 그리고 역대급 작품 '토탈 프렌드'가 나타났다.",
+      "회사의 주가가 폭발적으로 오른 것은 놀랍지도 않았으며, 순식간에 '토탈 이모션'은 대기업으로 거듭났다. 회사의 창업 멤버였던 여자와 남자는 높은 수준의 안정된 급여로 풍족한 삶을 누렸다. 그리고 마침내 둘은 결혼하기에 이르렀다.",
+      "\"이젠 연기하는 것까지 AI가 사람보다 더 잘하는구나, 싶더라고. 그냥 그런 생각이 들었어.\" 방금 두 사람이 보고 온 영화의 주연은 인간이 아니었다. AI 홀로그램이었다. 영화에 출연한 모든 배우가 AI 홀로그램이었다.",
+      "AI 업계와 회사의 성장 덕에 여자와 남자가 안락한 결혼 생활을 누리는 동안, 예술가들은 서서히 몰락했다. 한때 예술가들은 AI가 예술을 하는 건 불가능하다고 믿었다. 그러나 그것은 착각이었다. 창의성이 없는 작품이어도 사람들에게 정서적인 만족감을 선사하는 건 얼마든지 가능한 일이었다.",
+      "\"시나리오를 쓰고 싶어.\" 여자가 저녁을 먹다 말고 수저를 내려놓으며 말했다. 그리고 한쪽 입꼬리만 올리며 옅은 냉소를 지었다. \"써봤자 누가 받아주지도 않겠지. 어느 회사가 사람이 쓴 원고를 받아주겠어.\"",
+      "남자는 여자의 변화를 어려워했다. 웃음이 사라진 여자의 얼굴, 식도염이며 위염을 달고 통증에 시달리는 여자의 건강, 불면증이 만성화된 여자의 일상, 날이 갈수록 야위어가는 여자의 몸. 그 모든 것이 남자의 머리를 버겁게 했고 마음을 쓰라리게 했다.",
+      "남자는 여자가 집에 없는 동안 오랜만에 색소폰 연주를 시도해봤다. 그러나 두어 번 연습을 시도한 후 실망스러운 마음으로 색소폰을 내려놓았다. 형편없고 조악한 소리가 튀어나왔다.",
+      "어느 날, 여자가 현관문을 열자 색소폰 소리가 들렸다. 잠시 후 어색함의 정체를 알아차린 여자가 뜨악한 표정을 지었다. 남자는 색소폰을 부는 시늉만 하고 있었고, 연주 소리는 AI가 만든 것이었다.",
+      "\"이게 뭐냐고!\" 여자는 거의 울 듯한 얼굴로 달아나듯 방으로 들어갔다. 잠시 시간이 지나고 여자는 남자에게 문자메시지를 전송했다. 여자의 심리 상태를 분석한 AI가 자동으로 생성한 문자메시지를. 얼마 후, 남자가 보낸 장문의 문자메시지가 도착했다. 남자의 뺨과 여자의 뺨이 맞닿은 순간 여자는 문득 깨달았다. 남자가 보낸 문자메시지도 AI가 만들었으리라는 사실을.",
+      "그 뒤로도 여자와 남자는 다툼과 화해를 반복했다. 다툼은 두 사람이 직접 벌였고 화해에는 항상 AI가 개입했다. 두 사람의 사랑은 여전했다. 그러나 그 사랑은 점점 공허해졌고, 형태만 유지한 채 서서히 낙엽처럼 메말라, 굳어갔다. 두 사람은 결국 지쳐버렸고, 마침내 이혼에 합의했다."
+    ],
+    highlight: [8, 9],
+    questions: {
+      b: [
+        "여자와 남자는 다툼 후 화해할 때마다 AI가 만든 문자메시지를 사용했습니다. 두 사람의 진심이 담겨 있었음에도 사랑이 공허해진 이유가 무엇인지 설명해보세요.",
+        "남자가 색소폰 부는 시늉을 하며 AI 연주를 틀었을 때 여자가 극도로 분노한 이유는 무엇일까요? 여자에게 색소폰 연주가 갖는 의미를 생각해보세요."
+      ],
+      c: "여자는 AI가 예술을 장악한 세상에서 경제적 풍요를 누리면서도 시나리오를 쓰고 싶다는 욕망을 버리지 못합니다. '아무도 읽지 않더라도 글을 써야 하는 이유'가 있다면 무엇일까요? 반대로 그런 이유가 없다면, 창작이란 결국 무엇을 위한 행위일까요?"
+    }
+  },
+  {
+    id: 4,
+    title: "다시 부는 색소폰",
+    desc: "감정 체험 거래 시장의 탄생",
+    range: "\"홀몸이 되었지만\" ~ \"감정 체험 거래 시장이 시작되었다\"",
+    text: [
+      "홀몸이 되었지만 남자의 생활에 불편함은 없었다. 집도 있고 돈도 있으며 회사에서 정기적으로 연금도 받았다. 다만 긴 시간을 함께한 사람이 떨어져 나가면서, 마음속에 공백이 생겼을 뿐이었다.",
+      "남자는 언제부터인가 기억을 더듬기 시작했다. 시나리오를 쓰지 못해 눈물짓던 여자. 가난하던 시절 여자를 위해 색소폰을 연주하던 남자 자신. 서로가 고용된 대리인임을 모르고 진지하게 연기하다 뒤늦게 어색해하며 허탈하게 웃음 지었던 그날. 비록 궁핍하지만 사랑 하나만으로 서로에게 의지하며 행복하게 색소폰을 연주하던 남자 자신의 모습.",
+      "생각이 여기까지 다다르자 갑자기 남자의 머릿속에 불꽃처럼 무언가가 번쩍 일었다. 남자는 방치되어 있던 색소폰을 꺼냈다. 그리고 무작정 바깥으로 나갔다.",
+      "도심 한복판에서 남자는 색소폰을 불었다. 걸핏하면 음이 샜고, 얼마 불지도 않았는데 숨이 막혔다. 굳어버린 손가락이 원래의 박자를 따라잡지 못했다. 행인들은 과거에나 봤던 버스킹이 신기한 듯 눈길을 주며 지나갔다. 남자는 주변의 시선에 아랑곳하지 않고 온 힘을 다해 집중했다.",
+      "삐거덕거리는 마차처럼 남자의 연주는 느리고 더디며 거칠었지만, 손가락이 하나씩 움직이면서 천천히 선율이 되었다. 투박하지만 점점 '음악'의 모습을 띠기 시작했다. 마침내 연주가 끝난 순간, 남자는 색소폰에서 입을 떼며 길게 숨을 내뱉었다.",
+      "그리하여 남자는 젊은이와 그의 여자친구가 보는 앞에서 색소폰을 연주했다. 비록 젊은 시절에 비하자면 투박한 연주였지만, 비록 눈앞의 관객이라곤 두 명에 불과했지만, 가슴속에 피어오른 환희만큼은 남자가 젊은 시절에 느꼈던 것만큼 생생했다.",
+      "집으로 돌아온 뒤, 남자는 자신의 소셜미디어 계정에 다음과 같이 포스팅했다. '사랑을 나누는 연인들에게 색소폰을 연주해 드립니다. 제가 돈을 지불하겠습니다.'",
+      "남자는 매번 신청자를 찾아가 돈을 주고 색소폰을 불었다. 병원을 찾아가 임종을 앞둔 환자 앞에서 연주할 때, 남자는 인생의 가치와 죽음의 엄숙함을 체험했다. 남자는 재정적으로 안정된 사람이기에 어디서든 연주할 수 있었다. 색소폰을 불 때마다 남자는 다양한 감정을 체험했고, 그 결과 남자는 점점 더 정서적으로 풍요롭고 안정적이며 이해심과 공감의 폭이 깊은 사람으로 발전했다.",
+      "감정적 체험이 시장을 통해 돈으로 거래되는 시대가, 바야흐로 시작되었다."
+    ],
+    highlight: [7, 8],
+    questions: {
+      b: [
+        "남자는 돈을 받는 것이 아니라 오히려 돈을 주고 사람들 앞에서 연주했습니다. 남자가 이렇게 행동한 이유는 무엇이며, 그가 연주를 통해 얻고자 한 것은 무엇인가요?",
+        "소설은 '감정적 체험이 시장을 통해 돈으로 거래되는 시대가 바야흐로 시작되었다'고 서술합니다. 남자의 선택이 어떤 과정을 통해 이 시대를 만들어냈는지 흐름을 정리해보세요."
+      ],
+      c: "이 소설의 세계에서는 '경험을 구매한 사람'은 정서적으로 풍요로워지고, '경험을 판매한 사람'은 정서적으로 메말라갑니다. 이것이 단순히 소설 속 이야기가 아니라 현실에서도 벌어질 수 있는 일이라면, 우리 사회는 어떤 문제에 직면하게 될까요?"
+    }
+  },
+  {
+    id: 5,
+    title: "감정을 할인가에",
+    desc: "화자의 목소리, 그리고 우리의 현재",
+    range: "\"나는 우연히 본 다큐멘터리\" ~ 끝",
+    text: [
+      "나는 우연히 본 다큐멘터리를 통해 이 이야기를 처음 접했다. 다큐멘터리에서 남자는 '최초의 감정 체험 구매자'라는 이름으로 인터뷰했다. 백발의 노인이 된 남자가 추억에 잠긴 눈으로 자신의 삶을 들려주었다.",
+      "\"이제 저는 더 이상 슬프지 않답니다. 오히려 세상 모든 것에 감사하는 마음을 가지게 되었습니다. 수많은 감정적 체험이 저를 그런 사람으로 만들어주었답니다.\" 마치 찬란한 진리가 남자의 눈앞에 아른거리기라도 하는 것 같았다.",
+      "인터뷰를 마치고 두 달이 지난 다음, 남자는 조용히 숨을 거두었다고. 비록 남자는 세상을 떠났지만, 남자로 말미암아 형성된 '감정 체험 거래 시장'은 여전히 성장하는 중이라고.",
+      "나는 '위기에 처한 사람을 도와줄 경험' 같은 건 진작 판매한 지 오래되었다. 나는 변변한 직업이 없다. 내가 할 수 있는 일은 AI도 충분히, 아니 나보다 더 잘하기 때문에 내가 일을 할 수 있는 분야도 찾기 어렵다.",
+      "내가 가진 거라곤 '언젠가 미래에 겪을 경험들' 뿐이다. 그래서 나는 그것들을 판매하며 먹고사는 중이다. 사랑하는 사람 앞에서 음식을 요리해 줄 경험, 반지가 진열된 유리 쇼케이스 앞에서 사랑하는 사람과 함께 어느 반지를 구매할지 행복하게 고민할 경험 등 셀 수 없이 많고 종류도 다양하다.",
+      "나에게 경험을 구매한 부유한 사람들은 정서적으로도 부유한 사람이 될 것이다. 그런데 나는 왜 그게 별로 부럽지 않은 걸까? 물질적 빈부는, 이제 공감과 연민의 빈부로 확장되었다.",
+      "그래서 나는 조만간 '누군가와 사랑하는 관계로 맺어질 경험'을 판매할 계획이다. 사랑에 관한 감정 경험이 없더라도 생존은 얼마든지 가능하다. 나의 생존에 굳이 필요하지 않은 것, 그러므로 조금의 돈이라도 벌기 위해 팔아버리는 게 차라리 나은 것, 그것이 사랑이다.",
+      "나는 내가 겪을 미래의 감정을 할인가에 판매하기로 결정했다."
+    ],
+    highlight: [6, 7],
+    questions: {
+      b: null,
+      c: [
+        "소설의 화자인 '나'는 사랑할 경험조차 할인가에 팔기로 결정합니다. 화자는 이것을 합리적인 선택이라 여기지만, 읽는 독자로서 여러분은 어떻게 느꼈나요? 화자의 선택이 안타깝다면, 혹은 이해된다면 그 이유는 무엇인가요?",
+        "소설 제목 '감정을 할인가에 판매합니다'의 의미가 처음 읽을 때와 끝까지 읽은 후 어떻게 달라졌나요? 이 소설이 결국 말하고자 하는 것이 무엇이라고 생각하나요?"
+      ]
+    }
+  }
+];
+
+// ── 상태 ──
+let currentUser = null;
+let currentSection = 1;
+let progress = {}; // { 1: {done, data}, 2: ... }
+
+// ── 유틸 ──
+function showLoading(v) {
+  document.getElementById('loadingOverlay').style.display = v ? 'flex' : 'none';
+}
+
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── 로그인 ──
+async function doLogin() {
+  const studentId = document.getElementById('inputId').value.trim();
+  const name = document.getElementById('inputName').value.trim();
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+
+  if (!studentId || !name) {
+    errEl.textContent = '학번과 이름을 모두 입력해주세요.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  showLoading(true);
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ type: 'login', studentId, name }),
+      headers: { 'Content-Type': 'text/plain' }
+    });
+    const data = await res.json();
+    if (data.success) {
+      currentUser = { studentId, name };
+      await loadProgress();
+      initApp();
+    } else {
+      errEl.textContent = data.message || '로그인에 실패했습니다.';
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    errEl.textContent = '서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.';
+    errEl.style.display = 'block';
+  }
+  showLoading(false);
+}
+
+// ── Firestore 진도 불러오기 ──
+async function loadProgress() {
+  const docId = `${currentUser.studentId}_${currentUser.name}`;
+  try {
+    const doc = await db.collection('progress').doc(docId).get();
+    if (doc.exists) {
+      progress = doc.data().sections || {};
+    } else {
+      progress = {};
+    }
+  } catch(e) {
+    progress = {};
+  }
+}
+
+// ── Firestore 진도 저장 ──
+async function saveProgress() {
+  const docId = `${currentUser.studentId}_${currentUser.name}`;
+  try {
+    await db.collection('progress').doc(docId).set({
+      studentId: currentUser.studentId,
+      name: currentUser.name,
+      sections: progress,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e) {
+    console.error('진도 저장 실패', e);
+  }
+}
+
+// ── Google Sheets 기록 ──
+async function recordToSheet(sectionId, sectionData) {
+  const answers = sectionData.answers || {};
+  try {
+    await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'record',
+        studentId: currentUser.studentId,
+        name: currentUser.name,
+        section: `섹션 ${sectionId}`,
+        impressiveSentence: answers.sentence || '',
+        sentenceReason: answers.reason || '',
+        comprehensionAnswer: answers.comprehension || '',
+        deepAnswer: answers.deep || ''
+      }),
+      headers: { 'Content-Type': 'text/plain' }
+    });
+  } catch(e) {
+    console.error('시트 기록 실패', e);
+  }
+}
+
+// ── 앱 초기화 ──
+function initApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  document.getElementById('headerStudent').textContent = `${currentUser.studentId} · ${currentUser.name}`;
+
+  // 첫 미완료 섹션으로 이동
+  let startSection = 1;
+  for (let i = 1; i <= 5; i++) {
+    if (progress[i] && progress[i].done) startSection = i + 1;
+    else break;
+  }
+  currentSection = Math.min(startSection, 5);
+
+  renderNav();
+  renderContent();
+}
+
+// ── 네비게이션 렌더 ──
+function renderNav() {
+  const nav = document.getElementById('sectionNav');
+  nav.innerHTML = '';
+
+  // 헤더 진도 점
+  const hp = document.getElementById('headerProgress');
+  hp.innerHTML = '';
+
+  SECTIONS.forEach(s => {
+    const done = progress[s.id] && progress[s.id].done;
+    const isCurrent = s.id === currentSection;
+    const isUnlocked = s.id === 1 || (progress[s.id - 1] && progress[s.id - 1].done);
+
+    const tab = document.createElement('div');
+    tab.className = 'section-tab' + (isCurrent ? ' active' : '') + (done ? ' done' : '') + (!isUnlocked && !isCurrent ? ' locked' : '');
+    tab.textContent = `${s.id}부`;
+    tab.onclick = () => {
+      if (isUnlocked || done) {
+        currentSection = s.id;
+        renderNav();
+        renderContent();
+        window.scrollTo(0, 0);
+      } else {
+        showToast('이전 섹션을 먼저 완료해주세요.', 'error');
+      }
+    };
+    nav.appendChild(tab);
+
+    const dot = document.createElement('div');
+    dot.className = 'progress-dot' + (done ? ' done' : '') + (isCurrent && !done ? ' current' : '');
+    hp.appendChild(dot);
+  });
+}
+
+// ── 콘텐츠 렌더 ──
+function renderContent() {
+  const s = SECTIONS.find(x => x.id === currentSection);
+  const isUnlocked = s.id === 1 || (progress[s.id - 1] && progress[s.id - 1].done);
+  const isDone = progress[s.id] && progress[s.id].done;
+  const saved = progress[s.id] && progress[s.id].answers ? progress[s.id].answers : {};
+
+  let html = '';
+
+  // 섹션 헤더
+  html += `
+    <div class="section-header">
+      <div class="section-eyebrow">섹션 ${s.id} · ${s.range}</div>
+      <div class="section-title">${s.title}</div>
+      <div class="section-desc">${s.desc}</div>
+    </div>
+  `;
+
+  if (!isUnlocked) {
+    html += `
+      <div class="locked-banner">
+        <div class="locked-icon">🔒</div>
+        <div class="locked-text">이전 섹션을 완료하면 읽을 수 있어요.</div>
+      </div>
+    `;
+    document.getElementById('mainContent').innerHTML = html;
+    return;
+  }
+
+  // 텍스트 뷰어
+  html += `
+    <div class="text-viewer">
+      <div class="text-viewer-header">
+        <div class="text-viewer-label">소설 읽기</div>
+        <div class="text-viewer-range">${s.range}</div>
+      </div>
+      <div class="text-body">
+  `;
+
+  s.text.forEach((para, i) => {
+    const isHighlight = s.highlight && s.highlight.includes(i);
+    if (isHighlight) {
+      html += `<p class="text-highlight-section">${para}</p>`;
+    } else {
+      html += `<p>${para}</p>`;
+    }
+  });
+
+  html += `</div></div>`;
+
+  // 활동 영역
+  html += `
+    <div class="activity-divider">
+      <div class="activity-divider-line"></div>
+      <div class="activity-divider-label">활동하기</div>
+      <div class="activity-divider-line"></div>
+    </div>
+  `;
+
+  // A 활동 — 인상깊은 문장
+  html += `
+    <div class="activity-card">
+      <div class="activity-badge">
+        <div class="badge-letter">A</div>
+        <div class="badge-type">인상깊은 문장</div>
+      </div>
+      <div class="activity-question">이 섹션에서 가장 인상깊었던 문장을 직접 옮겨 써보세요.</div>
+      <div class="activity-question-sub">소설 본문에서 한 문장 또는 짧은 구절을 선택해주세요.</div>
+      <textarea class="activity-textarea" id="sentenceInput" placeholder="인상깊은 문장을 입력하세요..." ${isDone ? 'disabled' : ''}>${saved.sentence || ''}</textarea>
+      <div class="activity-question" style="margin-top: 20px;">왜 이 문장이 인상깊었나요?</div>
+      <div class="activity-question-sub">자신의 경험이나 생각과 연결해서 2~3문장으로 써보세요.</div>
+      <textarea class="activity-textarea reason" id="reasonInput" placeholder="이유를 써보세요..." ${isDone ? 'disabled' : ''}>${saved.reason || ''}</textarea>
+    </div>
+  `;
+
+  // B 활동 — 내용 확인 (섹션 5 제외)
+  if (s.questions.b) {
+    html += `
+      <div class="comprehension-card">
+        <div class="activity-badge">
+          <div class="badge-letter">B</div>
+          <div class="badge-type">내용 확인</div>
+        </div>
+    `;
+    s.questions.b.forEach((q, i) => {
+      const placeholder = `질문 ${i+1}에 대한 답을 써보세요...`;
+      const savedVal = saved[`comp${i}`] || '';
+      html += `
+        <div class="q-item">
+          <div class="q-number">질문 ${i + 1}</div>
+          <div class="q-text">${q}</div>
+          <textarea class="activity-textarea" id="compInput${i}" placeholder="${placeholder}" ${isDone ? 'disabled' : ''}>${savedVal}</textarea>
+        </div>
+      `;
+    });
+    html += `</div>`;
+  }
+
+  // C 활동 — 심화 질문
+  if (s.questions.c) {
+    html += `
+      <div class="activity-card">
+        <div class="activity-badge">
+          <div class="badge-letter">C</div>
+          <div class="badge-type">심화 질문</div>
+        </div>
+    `;
+    const cArr = Array.isArray(s.questions.c) ? s.questions.c : [s.questions.c];
+    cArr.forEach((q, i) => {
+      const savedVal = saved[`deep${i}`] || '';
+      html += `
+        ${i > 0 ? '<div style="border-top: 1px solid var(--paper-warm); margin: 24px 0;"></div>' : ''}
+        <div class="q-number">심화 ${cArr.length > 1 ? i+1 : ''}</div>
+        <div class="activity-question">${q}</div>
+        <div class="activity-question-sub">정답은 없어요. 자신의 생각을 솔직하게 써보세요.</div>
+        <textarea class="activity-textarea" id="deepInput${i}" placeholder="생각을 자유롭게 써보세요..." style="min-height: 140px;" ${isDone ? 'disabled' : ''}>${savedVal}</textarea>
+      `;
+    });
+    html += `</div>`;
+  }
+
+  // 완료 버튼 or 완료 배너
+  if (isDone) {
+    const isLast = s.id === 5;
+    html += `
+      <div class="done-banner">
+        <div class="done-icon">✓</div>
+        <div class="done-text">
+          <strong>섹션 ${s.id} 완료</strong>
+          <span>${isLast ? '모든 섹션을 완료했어요. 수고했습니다!' : '다음 섹션을 이어서 읽어보세요.'}</span>
+        </div>
+      </div>
+    `;
+    if (!isLast) {
+      html += `
+        <div class="submit-area">
+          <button class="submit-btn" onclick="goNextSection()">섹션 ${s.id + 1}부 읽으러 가기 →</button>
+        </div>
+      `;
+    }
+  } else {
+    html += `
+      <div class="submit-area">
+        <button class="submit-btn" id="submitBtn" onclick="submitSection()">활동 완료하고 저장하기</button>
+        <div class="submit-hint">모든 칸을 채운 뒤 저장해주세요.</div>
+      </div>
+    `;
+  }
+
+  document.getElementById('mainContent').innerHTML = html;
+}
+
+// ── 섹션 제출 ──
+async function submitSection() {
+  const s = SECTIONS.find(x => x.id === currentSection);
+  const sentence = document.getElementById('sentenceInput').value.trim();
+  const reason = document.getElementById('reasonInput').value.trim();
+
+  if (!sentence || !reason) {
+    showToast('인상깊은 문장과 이유를 모두 입력해주세요.', 'error');
+    return;
+  }
+
+  let comprehensionParts = [];
+  if (s.questions.b) {
+    const parts = [];
+    for (let i = 0; i < s.questions.b.length; i++) {
+      const val = document.getElementById(`compInput${i}`).value.trim();
+      if (!val) {
+        showToast('내용 확인 질문의 답을 모두 입력해주세요.', 'error');
+        return;
+      }
+      parts.push(`Q${i+1}: ${val}`);
+    }
+    comprehensionParts = parts;
+  }
+
+  const cArr = Array.isArray(s.questions.c) ? s.questions.c : (s.questions.c ? [s.questions.c] : []);
+  const deepParts = [];
+  for (let i = 0; i < cArr.length; i++) {
+    const val = document.getElementById(`deepInput${i}`).value.trim();
+    if (!val) {
+      showToast('심화 질문의 답을 입력해주세요.', 'error');
+      return;
+    }
+    deepParts.push(`심화${i+1}: ${val}`);
+  }
+
+  showLoading(true);
+  document.getElementById('submitBtn').disabled = true;
+
+  // 답변 저장 객체
+  const answers = { sentence, reason };
+  if (s.questions.b) {
+    for (let i = 0; i < s.questions.b.length; i++) {
+      answers[`comp${i}`] = document.getElementById(`compInput${i}`).value.trim();
+    }
+  }
+  for (let i = 0; i < cArr.length; i++) {
+    answers[`deep${i}`] = document.getElementById(`deepInput${i}`).value.trim();
+  }
+
+  const sectionData = {
+    done: true,
+    answers,
+    completedAt: new Date().toISOString()
+  };
+
+  // Firestore 저장
+  progress[currentSection] = sectionData;
+  await saveProgress();
+
+  // Google Sheets 기록
+  await recordToSheet(currentSection, {
+    answers: {
+      sentence,
+      reason,
+      comprehension: comprehensionParts.join('\n'),
+      deep: deepParts.join('\n')
+    }
+  });
+
+  showLoading(false);
+  showToast(`섹션 ${currentSection} 완료! 저장되었습니다.`, 'success');
+  renderNav();
+  renderContent();
+}
+
+// ── 다음 섹션 이동 ──
+function goNextSection() {
+  currentSection = currentSection + 1;
+  renderNav();
+  renderContent();
+  window.scrollTo(0, 0);
+}
+
+// ── 엔터키 로그인 ──
+document.getElementById('inputName').addEventListener('keypress', e => {
+  if (e.key === 'Enter') doLogin();
+});
+</script>
+</body>
+</html>
